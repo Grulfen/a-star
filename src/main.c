@@ -1,11 +1,6 @@
-#include<stdio.h>
 #include<stdlib.h>
-#include<sys/time.h>
-#include<time.h>
-#include<string.h>
 #include<curses.h>
-#include<unistd.h>
-#include<omp.h>
+#include"thing_util.h"
 
 // Struct for representing the world
 typedef struct {
@@ -31,6 +26,16 @@ void destroy_world(world *w)
         free(w);
 }
 
+// Put some sane values into the world
+void init_world(world *w)
+{
+        for(int y=0; y < w->y; y++){
+                for(int x=0; x < w->x; x++){
+                        w->matrix[y*w->x + x] = '.';
+                }
+        }
+}
+
 // Print world to stdout
 void print_world(world *w)
 {
@@ -47,9 +52,8 @@ void print_world(world *w)
         putchar('\n');
 }
 
-
-// Print to stdsrc (curses)
-void print_curses(world *w, int color)
+// Draw world to stdscr (curses)
+void draw_world(world *w, int color)
 {
         char c;
 
@@ -78,8 +82,30 @@ void print_curses(world *w, int color)
                 }
         }
         attroff(COLOR_PAIR(color));
-        refresh();
 }
+
+// Draw thing on stdscr
+void draw_thing(thing *t)
+{
+        if(t == NULL){
+                return;
+        }
+
+        attron(COLOR_PAIR(t->color));
+        mvaddch(t->y + 1, t->x + 1, t->symbol);
+        attroff(COLOR_PAIR(t->color));
+}
+
+
+// Draw list of things on stdscr
+void draw_things(thing_list *things)
+{
+        while(things != NULL){
+                draw_thing(things->thing);
+                things = things->next;
+        }
+}
+
 
 // Initialize curses window
 void init_curses()
@@ -88,7 +114,8 @@ void init_curses()
         keypad(stdscr, true);
         noecho();
         cbreak();
-        /* nodelay(stdscr, true); */
+        // Hide cursos
+        curs_set(0);
         start_color();
         init_pair(1, COLOR_WHITE, COLOR_BLACK);
         init_pair(2, COLOR_GREEN, COLOR_BLACK);
@@ -96,29 +123,72 @@ void init_curses()
         init_pair(4, COLOR_YELLOW, COLOR_BLACK);
 }
 
+void place_in_world(world *w, thing *t, int x, int y){
+        w->matrix[y*w->x + x] = t->symbol;
+        t->x = x;
+        t->y = y;
+}
+
 int main()
 {
-
         int color = 2;
         int row, col;
 
-        world *w;
+        // Curses initstuff
         init_curses();
         getmaxyx(stdscr, row, col);
+
+        // World init stuff
+        world *w;
         w = create_world(col - 2, row - 2);
+        init_world(w);
+
+        // Player init stuff
+        thing_list *head = create_thing_list(NULL);
+
+        thing* player = init_thing(4, '@', 10, 10, head);
+        init_thing(3, 'g', 20, 40, head);
+
         int c = 'n';
         while (c != 'q'){
 
 
                 switch (c) {
+                        case 's':
+                                player->y += 1;
+                                if(player->y > (w->y - 1)){
+                                        player->y = w->y - 1;
+                                }
+                                break;
+                        case 'w':
+                                player->y -= 1;
+                                if(player->y < 0){
+                                        player->y = 0;
+                                }
+                                break;
+                        case 'a':
+                                player->x -= 1;
+                                if(player->x < 0){
+                                        player->x = 0;
+                                }
+                                break;
+                        case 'd':
+                                player->x += 1;
+                                if(player->x > (w->x - 1)){
+                                        player->x = w->x - 1;
+                                }
+                                break;
                         default: break;
                 }
-                print_curses(w, color); // Print world to screen
+                draw_world(w, color); // Print world to screen
+                draw_things(head);
+                refresh();
                 c = getch(); // Check if user input is available - non-blocking call
         }
 
         endwin();
 
         destroy_world(w);
+        destroy_things(head);
         return 0;
 }

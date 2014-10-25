@@ -13,7 +13,7 @@ LDFLAGS = -lncurses
 
 EXE = main
 
-OBJ = $(BIN)/main.o
+OBJ = $(BIN)/main.o $(BIN)/thing_util.o
 
 all: mkbin $(EXE) 
 

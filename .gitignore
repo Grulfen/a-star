@@ -1,3 +1,4 @@
 *.swp
 bin/*
 main
+Session.vim

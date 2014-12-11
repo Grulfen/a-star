@@ -1,5 +1,5 @@
-CC = gcc
-CFLAGS = -Wall -Wextra -W -pedantic -std=c99
+CC = g++
+CFLAGS = -Wall -Wextra -W -pedantic -std=c++11
 
 ifeq ($(mode),release)
 	CFLAGS += -O2
@@ -17,7 +17,7 @@ OBJ = $(BIN)/main.o $(BIN)/thing_util.o
 
 all: mkbin $(EXE) 
 
-$(BIN)/%.o: $(SRC)/%.c
+$(BIN)/%.o: $(SRC)/%.cpp
 	$(CC) -c $(CFLAGS) $? -o $@
 
 $(EXE): $(OBJ)

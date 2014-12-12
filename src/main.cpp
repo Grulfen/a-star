@@ -14,7 +14,7 @@ class world {
                     if(x > 5 && x < 50 && y == 12){
                         matrix.push_back('#');
                     } else {
-                        matrix.push_back('.');
+                        matrix.push_back('`');
                     }
                 }
             }
@@ -64,6 +64,12 @@ void draw_world(world &w, int color)
     for(int y = 0; y < w.y; y++){
         for(int x = 0; x < w.x; x++){
             c = w.matrix[y*w.x + x];
+            if(c == '`')
+            {
+                attroff(COLOR_PAIR(1));
+            } else {
+                attron(COLOR_PAIR(color));
+            }
             mvaddch(y + 1, x + 1, c);
         }
     }

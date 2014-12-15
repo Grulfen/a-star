@@ -2,6 +2,11 @@
 #include<curses.h>
 #include"thing_util.hpp"
 #include<vector>
+#include<set>
+#include<map>
+#include<list>
+#include<vector>
+#include<iostream>
 
 using namespace std;
 
@@ -22,12 +27,12 @@ class world {
         int x;
         int y;
         vector<char> matrix;
-        bool passable(int x, int y)
+        bool passable(pair<int, int> pos)
         {
-            if(x >= this->x || x < 0 || y >= this->y || y < 0){
-                return 0;
+            if(pos.first >= this->x || pos.first < 0 || pos.second >= this->y || pos.second < 0){
+                return false;
             }
-            switch(matrix[y*this->x + x]){
+            switch(matrix[pos.second*this->x + pos.first]){
                 case '#':
                     return false;
                     break;
@@ -37,6 +42,12 @@ class world {
             }
         }
 };
+
+// Return the manhattan distance between start and goal
+int cost_estimate(pair<int, int> start, pair<int, int> goal)
+{
+    return abs(start.first - goal.first) + abs(start.second - goal.second);
+}
 
 // Draw world to stdscr (curses)
 void draw_world(world &w, int color)
@@ -85,7 +96,7 @@ void draw_thing(thing *t)
     }
 
     attron(COLOR_PAIR(t->color));
-    mvaddch(t->y + 1, t->x + 1, t->symbol);
+    mvaddch(t->pos.second + 1, t->pos.first + 1, t->symbol);
     attroff(COLOR_PAIR(t->color));
 }
 
@@ -125,37 +136,111 @@ int tile_passable(world &w, int x, int y)
     }
 }
 
+pair<int, int> get_best_node(set<pair<int, int> > nodes, pair<int, int> target)
+{
+    pair<int, int> best_node = {0,0}; 
+    int best_score = 999;
+
+    pair<int, int> node;
+    int score;
+
+    for(auto const &it : nodes){
+        node = it;
+        score = cost_estimate(it, target);
+        if(score < best_score){
+            best_score = score;
+            best_node = node;
+        }
+    }
+    return best_node;
+}
+
+list<pair<int, int>> reconstruct_path(map<pair<int, int>, pair<int, int> > &came_from, pair<int, int> pos)
+{
+    pair<int, int> current = pos;
+    list<pair<int, int> > total_path = {current};
+    while (came_from.find(current) != came_from.end()){
+        current = came_from[current];
+        total_path.push_front(current);
+    }
+    total_path.pop_front();
+    return total_path;
+}
+
+vector<pair<int, int>> get_neighbours(pair<int, int> &node, world& w)
+{
+    vector<pair<int, int>> neighbours = {};
+    vector<pair<int, int>> directions = {{0,1}, {0,-1}, {1,0},{-1,0}};
+    pair<int, int> current;
+    for(auto const &it : directions){
+        current = {node.first + it.first, node.second + it.second};
+        if(w.passable(current)){
+            neighbours.push_back(current);
+        }
+    }
+    return neighbours;
+}
 
 // Moves the thing t towards the thing target
-// TODO use a-star to move better
-void move_thing(thing &t, thing &target, world &w)
+void move_thing(thing &start, thing &target, world &w)
 {
-    int dx = t.x - target.x;
-    int dy = t.y - target.y;
+    int tmp_g_score;
+    set<pair<int, int> > visited {};
+    set<pair<int, int> > open_set = {start.pos};
+    map<pair<int, int>, pair<int, int> > came_from = {};
 
-    int move_x = dx > 0 ? -1 : 1;
-    int move_y = dy > 0 ? -1 : 1;
+    map<pair<int, int>, int> g_score, f_score;
 
-    if(abs(dx) > abs(dy)){
-        if(tile_passable(w, t.x+move_x, t.y)){
-            t.x += move_x;
-        } else if(tile_passable(w, t.x, t.y + move_y)){
-            t.y += move_y;
-        }
-    } else {
-        if(tile_passable(w, t.x, t.y + move_y)){
-            t.y += move_y;
-        } else if(tile_passable(w, t.x+move_x, t.y)){
-            t.x += move_x;
+    // Cost from start along best known path
+    g_score[start.pos] = 0;
+
+    // Estimated cost from start to goal
+    f_score[start.pos] = g_score[start.pos] + cost_estimate(start.pos, target.pos);
+
+    pair<int, int> current;
+
+    while (!open_set.empty()) {
+        // Get best candidate
+        current = get_best_node(open_set, target.pos);
+        
+        if(current == target.pos){
+            // TODO kan vara idé att fixa så man spar pathen istället för att
+            // räkna om den varje gång
+            start.pos = reconstruct_path(came_from, current).front();
+            cerr << "(" << start.pos.first << ", " << start.pos.second << ")" << endl;
+            return;
+        } else {
+            // Remove from open_set
+            open_set.erase(current);
+
+            // Add to visited
+            visited.insert(current);
+
+            for(auto neighbour: get_neighbours(current, w)){
+                // If neighbour not visited
+                if(visited.find(neighbour) != visited.end()){
+                    continue;
+                }
+                tmp_g_score = g_score[current] + 1;
+                if((open_set.find(neighbour) == open_set.end()) || tmp_g_score < g_score[neighbour]){
+                    came_from[neighbour] = current;
+                    g_score[neighbour] = tmp_g_score;
+                    f_score[neighbour] = tmp_g_score + cost_estimate(neighbour, target.pos);
+                    if(open_set.find(neighbour) == open_set.end()){
+                        open_set.insert(neighbour);
+                    }
+                }
+            }
         }
     }
 }
 
+
+// Draw all things in list
 void draw_things(vector<thing*> &things)
 {
-    vector<thing*>::iterator it;
-    for(it = things.begin(); it != things.end(); ++it){
-        draw_thing(*it);
+    for(auto const &it : things){
+        draw_thing(it);
     }
 }
 
@@ -184,29 +269,33 @@ int main()
         switch (c) {
             case KEY_DOWN:
             case 's':
-                if(w.passable(player.x, player.y+1)){
-                    player.y += 1;
+                player.pos.second += 1;
+                if(!w.passable(player.pos)){
+                    player.pos.second -= 1;
                 }
                 break;
             case KEY_UP:
             case 'w':
-                if(w.passable(player.x, player.y-1)){
-                    player.y -= 1;
+                    player.pos.second -= 1;
+                if(!w.passable(player.pos)){
+                    player.pos.second += 1;
                 }
                 break;
             case KEY_LEFT:
             case 'a':
-                if(w.passable(player.x-1, player.y)){
-                    player.x -= 1;
+                player.pos.first -= 1;
+                if(!w.passable(player.pos)){
+                    player.pos.first += 1;
                 }
                 break;
             case KEY_RIGHT:
             case 'd':
-                if(w.passable(player.x+1, player.y)){
-                    player.x += 1;
+                player.pos.first += 1;
+                if(!w.passable(player.pos)){
+                    player.pos.first -= 1;
                 }
                 break;
-            default: 
+            case ' ':
                 move_thing(goblin, player, w);
                 break;
         }

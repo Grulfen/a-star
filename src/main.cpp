@@ -207,7 +207,7 @@ void move_thing(thing &start, thing &target, world &w)
             // TODO kan vara idé att fixa så man spar pathen istället för att
             // räkna om den varje gång
             start.pos = reconstruct_path(came_from, current).front();
-            cerr << "(" << start.pos.first << ", " << start.pos.second << ")" << endl;
+            /* cerr << "(" << start.pos.first << ", " << start.pos.second << ")" << endl; */
             return;
         } else {
             // Remove from open_set

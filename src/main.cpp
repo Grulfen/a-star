@@ -1,47 +1,16 @@
 #include<stdlib.h>
 #include<curses.h>
-#include"thing_util.hpp"
 #include<vector>
 #include<set>
 #include<map>
 #include<list>
-#include<vector>
 #include<iostream>
+
+#include"thing_util.hpp"
+#include"world.hpp"
 
 using namespace std;
 
-// Class for representing the world
-class world {
-    public:
-        world(int x, int y) : x(x), y(y) {
-            for(int y=0; y < this->y; y++){
-                for(int x=0; x < this->x; x++){
-                    if(x > 5 && x < 50 && y == 12){
-                        matrix.push_back('#');
-                    } else {
-                        matrix.push_back('`');
-                    }
-                }
-            }
-        }
-        int x;
-        int y;
-        vector<char> matrix;
-        bool passable(pair<int, int> pos)
-        {
-            if(pos.first >= this->x || pos.first < 0 || pos.second >= this->y || pos.second < 0){
-                return false;
-            }
-            switch(matrix[pos.second*this->x + pos.first]){
-                case '#':
-                    return false;
-                    break;
-                default:
-                    return true;
-                    break;
-            }
-        }
-};
 
 // Return the manhattan distance between start and goal
 int cost_estimate(pair<int, int> start, pair<int, int> goal)
@@ -50,7 +19,7 @@ int cost_estimate(pair<int, int> start, pair<int, int> goal)
 }
 
 // Draw world to stdscr (curses)
-void draw_world(world &w, int color)
+void draw_world(World &w, int color)
 {
     char c;
 
@@ -118,7 +87,7 @@ void init_curses()
 }
 
 
-int tile_passable(world &w, int x, int y)
+int tile_passable(World &w, int x, int y)
 {
     if(x >= w.x || x < 0 || y >= w.y || y < 0){
         return 0;
@@ -167,7 +136,7 @@ list<pair<int, int>> reconstruct_path(map<pair<int, int>, pair<int, int> > &came
     return total_path;
 }
 
-vector<pair<int, int>> get_neighbours(pair<int, int> &node, world& w)
+vector<pair<int, int>> get_neighbours(pair<int, int> &node, World& w)
 {
     vector<pair<int, int>> neighbours = {};
     vector<pair<int, int>> directions = {{0,1}, {0,-1}, {1,0},{-1,0}};
@@ -182,7 +151,7 @@ vector<pair<int, int>> get_neighbours(pair<int, int> &node, world& w)
 }
 
 // Moves the thing t towards the thing target
-void move_thing(thing &start, thing &target, world &w)
+void move_thing(thing &start, thing &target, World &w)
 {
     int tmp_g_score;
     set<pair<int, int> > visited {};
@@ -255,7 +224,7 @@ int main()
     getmaxyx(stdscr, row, col);
 
     // World init stuff
-    world w = world(col-2, row-2);
+    World w = World(col-2, row-2);
 
     // Things init stuff
     vector<thing*> things;
